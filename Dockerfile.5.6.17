@@ -1,0 +1,34 @@
+FROM centos:latest
+
+EXPORT 3306
+
+ENV http_proxy 192.168.2.60:9080
+ENV https_proxy 192.168.2.60:9080
+
+ENV MYSQL_VERSION      5.6.17
+ENV MYSQL_PACKAGE_NAME mysql-${MYSQL_VERSION}
+ENV MYSQL_RPM_URL_BASE http://downloads.mysql.com/archives/get/file
+ENV SOURCE_TAR         ${MYSQL_PACKAGE_NAME}.tar.gz
+ENV DEBUG_DIR          /pb2/build/sb_0-11763321-1394824179.77/rpm/BUILD/${MYSQL_PACKAGE_NAME}/${MYSQL_PACKAGE_NAME}
+
+RUN yum install -y gdb tar gzip perl-Data-Dumper
+RUN yum install -y ${MYSQL_RPM_URL_BASE}/MySQL-server-${MYSQL_VERSION}-1.el6.x86_64.rpm \
+    ${MYSQL_RPM_URL_BASE}/MySQL-client-${MYSQL_VERSION}-1.el6.x86_64.rpm
+
+RUN curl -LO ${MYSQL_RPM_URL_BASE}/${SOURCE_TAR} && \
+    tar -C /usr/local/src -zxf ${SOURCE_TAR} && \
+    rm -f ${SOURCE_TAR} && \
+    mkdir -p $(dirname ${DEBUG_DIR}) && \
+    ln -s /usr/local/src/${MYSQL_PACKAGE_NAME} ${DEBUG_DIR}
+
+RUN rm -rf /usr/local/src/${MYSQL_PACKAGE_NAME}/mysql-test && \
+    yum clean all
+
+ADD files/start_mysql.sh /start_mysql.sh
+ADD files/5.6/my.cnf /etc/my.cnf
+
+RUN rm -rf /var/lib/mysql && \
+    mysql_install_db && \
+    chown -R mysql:mysql /var/lib/mysql
+
+ENTRYPOINT bash /start_mysql.sh
